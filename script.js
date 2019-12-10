@@ -1,5 +1,5 @@
 $body = $("body");
-
+var checkBoxArray = [];
 $(document).ready(function () {
     $(document).on({
         ajaxStart: function () { $body.addClass("loading"); },
@@ -12,7 +12,23 @@ $(document).ready(function () {
 function buildCard(coinObj) {
     let card = $(`<div class="card col-lg-4 col-md-6 col-sm-12" id=${coinObj.symbol}></div>`)[0]
     let label = $(`<label class="switch mt-1"></label>`)[0];
-    let input = $(`<input type="checkbox" id=${coinObj.id}>`)[0]
+    let input = $(`<input type="checkbox" id=${coinObj.symbol}>`)[0]
+    input.addEventListener('change', function (event) {
+
+        if (checkBoxArray.indexOf(input.id) > -1) {
+            //In the array!
+            checkBoxArray.splice(checkBoxArray.indexOf( input.id), 1);
+        } else {
+            //Not in the array
+            if (checkBoxArray.length > 4) {
+                
+                moreThenFive(input.id,event.target)
+            }
+            else
+                checkBoxArray.push(input.id);
+        }
+    }
+    )
     let span = $(`<span class="slider round"></span>`)[0]
     $(label).append(input).append(span);
     $(card).append(label);
@@ -29,6 +45,7 @@ function buildCard(coinObj) {
     $(card).append(moreInfoSpace);
     return card;
 }
+
 function buildAllCards(result) {
     var root = $('.root')[0];
     result.forEach(element => {
@@ -36,26 +53,34 @@ function buildAllCards(result) {
     });
 }
 
+//more then 5 coins were marked, popup window
+function moreThenFive(currentCardId,checkbox) {
+    $(checkbox).prop('checked', !$(checkbox).prop('checked'));
+    $('#exampleModal').modal('show');
+    
+}
+
+//more info was clicked
 function moreInfo(e, moreInfoSpace) {
     let now = Date.now();
     $(moreInfoSpace).empty();
     let coinID = e.target.id.replace('infoBtn ', '');
-    if (!localStorage.getItem(now.toString() + coinID) === null) {
 
-        
-            
-        getResultPerCoin(moreInfoSpace,coinID,now)
+    //if local storage is null it is the first iteration
+    if (localStorage.getItem(now.toString() + coinID) === null) {
+        getResultPerCoin(moreInfoSpace, coinID, now.toString())
     }
-    buildMoreInfo(moreInfoSpace,localStorage.getItem(now.toString() + coinID))
-    }
+    //if not need to add retrieve more info from local storage
+    getResultPerCoin(moreInfoSpace, coinID, now.toString())
+}
 
 
-function getResultPerCoin(moreInfoSpace,coinID,now){
+function getResultPerCoin(moreInfoSpace, coinID, now) {
     $.ajax({
         url: `https://api.coingecko.com/api/v3/coins/${coinID}`,
         success: function (res) {
             buildMoreInfo(moreInfoSpace, res);
-            window.localStorage.setItem(now.toString() + coinID,res);
+            window.localStorage.setItem(now.toString() + coinID, res);
         },
         error: function () {
             alert('error!');
@@ -96,7 +121,7 @@ function getAllCoins() {
             // var root=$('.root')[0];
             // $(root).append('<div class="row"></div>')[0]
             result = res.slice(0, 100);
-            buildAllCards(result);
+            buildAllCards(res);
             // res.forEach(element => {
             // root.appendChild(buildCard(element));
             // });
