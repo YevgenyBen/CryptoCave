@@ -8,7 +8,7 @@ $(document).ready(function () {
     getAllCoins()
 
 });
-
+ 
 function buildCard(coinObj) {
     let card = $(`<div class="card col-lg-4 col-md-6 col-sm-12" id=${coinObj.symbol}></div>`)[0]
     let label = $(`<label class="switch mt-1"></label>`)[0];
