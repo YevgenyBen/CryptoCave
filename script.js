@@ -1,7 +1,10 @@
 $body = $('body');
 var root = $('.root')[0];
+var parallax = $('.parallax')[0];
 var checkBoxArray = [];
+var symbolArray = [];
 $(document).ready(function() {
+	localStorage.clear();
 	$(document).on({
 		ajaxStart: function() {
 			$body.addClass('loading');
@@ -11,39 +14,76 @@ $(document).ready(function() {
 		},
 	});
 	getAllCoins();
+	var checkBoxArray = [];
+	var symbolArray = [];
 	let aboutBtn = $('.about-btn')[0];
 	aboutBtn.addEventListener('click', function(event) {
+		$(parallax).hide();
 		$(root).empty();
 	});
 	let reportsBtn = $('.reports-btn')[0];
 	reportsBtn.addEventListener('click', function(event) {
 		$(root).empty();
+		createChart();
 	});
+	let searchBtn = $('.search-btn')[0];
+	searchBtn.addEventListener('click', searchFilterClicked);
 	// let homeBtn = $('.home-btn')[0];
 	// homeBtn.addEventListener('click', function(event) {
 	// 	$(root).empty();
 	// });
 });
 
+//search term was clicked
+function searchFilterClicked() {
+	let allCards = $(root).find('.card');
+	[...allCards].forEach(element => $(element).show());
+	let searchInputValue = $('.search-input').val();
+
+	if (searchInputValue == '') {
+		//reset display
+		return;
+	}
+	let wantedCards = $(root).find(`#${searchInputValue}`)[0];
+	if (!wantedCards) {
+		//reset display
+		return;
+	}
+	if (!wantedCards && wantedCards.length < 1) {
+		//reset display
+		return;
+	}
+	[...allCards].forEach(element => {
+		if (element != wantedCards) $(element).hide();
+	});
+}
+
 function buildCard(coinObj) {
 	let card = $(`<div class="card p-2 col-lg-4 col-md-6 col-sm-12" id=${coinObj.symbol}></div>`)[0];
-	let label = $(`<label class="switch mt-1"></label>`)[0];
-	let input = $(`<input type="checkbox" id=${coinObj.symbol}>`)[0];
-	input.addEventListener('change', function(event) {
-		if (checkBoxArray.indexOf(label.cloneNode(true)) > -1) {
-			//In the array!
-			checkBoxArray.splice(checkBoxArray.indexOf(label.cloneNode(true)), 1);
-		} else {
-			//Not in the array
-			if (checkBoxArray.length > 4) {
-				moreThenFive(label.cloneNode(true), event.target);
-			} else checkBoxArray.push(label.cloneNode(true));
-		}
-	});
+
+	let label = $(`<label class="switch mt-1" id=${coinObj.symbol}></label>`)[0];
+	let input = $(`<input type="checkbox" >`)[0];
 	let span = $(`<span class="slider round"></span>`)[0];
 	$(label)
 		.append(input)
 		.append(span);
+	input.addEventListener('change', function(event) {
+		// if (checkBoxArray.indexOf(label) > -1) {
+		if (symbolArray.includes(label.id)) {
+			//In the array!
+			checkBoxArray.splice(checkBoxArray.indexOf(label), 1);
+			symbolArray.splice(symbolArray.indexOf(label.id), 1);
+		} else {
+			//Not in the array
+			if (checkBoxArray.length > 4) {
+				moreThenFive(label.id, event.target);
+			} else {
+				checkBoxArray.push(label.cloneNode(true));
+				symbolArray.push(label.id);
+			}
+		}
+	});
+
 	$(card).append(label);
 	// $(card).append( $('<h3>'+coinObj.id+'</h3>')[0]);
 	$(card).append($('<h4>' + coinObj.name + '</h4>')[0]);
@@ -70,11 +110,55 @@ function buildAllCards(result) {
 
 //more then 5 coins were marked, popup window
 function moreThenFive(currentCardId, checkbox) {
+	$('.modal-body').empty();
 	$(checkbox).prop('checked', !$(checkbox).prop('checked'));
 	checkBoxArray.forEach(element => {
-		$('.modal-body')[0].append(element);
+		let div = $('<div class="button-holder"></div>')[0];
+		div.append(element);
+		div.append(element.id);
+
+		$('.modal-body')[0].append(div);
 	});
 	$('#exampleModal').modal('show');
+}
+
+//cancel was clicked on modal
+function cancelModal() {
+	//let origArray = $('.modal-body').find('.switch');
+	//checkBoxArray = [...origArray];
+	$('.modal-body').empty();
+}
+
+//save changes on modal
+function saveModal() {
+	let localCheckBoxArray = [];
+	let localSymbolArray = [];
+	let origArray = [];
+	origArray = $('.modal-body').find('.switch');
+	for (let i = 0; i < origArray.length; i++) {
+		let checkbox = $(origArray[i]).find('input')[0];
+		let bool = $(checkbox).is(':checked');
+		if (bool) {
+			localCheckBoxArray.push(origArray[i]);
+		}
+	}
+
+	for (let i = 0; i < localCheckBoxArray.length; i++) {
+		localSymbolArray.push(localCheckBoxArray[i].id);
+	}
+	//goten clicked modal switches
+	let allSwitches = $(root).find('.switch');
+	for (let i = 0; i < allSwitches.length; i++) {
+		if (localSymbolArray.indexOf(allSwitches[i].id) == -1) {
+			let input = allSwitches[i].children[0];
+			$(input).prop('checked', false);
+		}
+	}
+
+	checkBoxArray = [...localCheckBoxArray];
+	symbolArray = [...localSymbolArray];
+	$('#exampleModal').modal('hide');
+	$('.modal-body').empty();
 }
 
 //more info was clicked
@@ -84,11 +168,18 @@ function moreInfo(e, moreInfoSpace) {
 	let coinID = e.target.id.replace('infoBtn ', '');
 
 	//if local storage is null it is the first iteration
-	if (localStorage.getItem(now.toString() + coinID) === null) {
-		getResultPerCoin(moreInfoSpace, coinID, now.toString());
+	if (localStorage.getItem(coinID) === null) {
+		getResultPerCoin(moreInfoSpace, coinID, now);
+	} else {
+		let localStorageObject = JSON.parse(localStorage.getItem(coinID));
+		if (Date.now() - localStorageObject.time > 120000) {
+			//2 minutes have passed
+			getResultPerCoin(moreInfoSpace, coinID, now);
+		} else {
+			//2 minutes have not passed
+			buildMoreInfo(moreInfoSpace, localStorageObject.result);
+		}
 	}
-	//if not need to add retrieve more info from local storage
-	getResultPerCoin(moreInfoSpace, coinID, now.toString());
 }
 
 function getResultPerCoin(moreInfoSpace, coinID, now) {
@@ -96,7 +187,14 @@ function getResultPerCoin(moreInfoSpace, coinID, now) {
 		url: `https://api.coingecko.com/api/v3/coins/${coinID}`,
 		success: function(res) {
 			buildMoreInfo(moreInfoSpace, res);
-			window.localStorage.setItem(now.toString() + coinID, res);
+
+			//build object to place in local storage
+			let localStorageObject = {
+				result: res,
+				time: now.toString(),
+			};
+
+			window.localStorage.setItem(coinID, JSON.stringify(localStorageObject));
 		},
 		error: function() {
 			alert('error!');
@@ -125,6 +223,7 @@ function buildMoreInfo(moreInfoSpace, res) {
 }
 
 function getAllCoins() {
+	$(parallax).show();
 	$('.root').empty();
 
 	$.ajax({
@@ -137,6 +236,91 @@ function getAllCoins() {
 			// res.forEach(element => {
 			// root.appendChild(buildCard(element));
 			// });
+		},
+		error: function() {
+			alert('error!');
+		},
+	});
+}
+
+//time functions
+function time_format(d) {
+	hours = format_two_digits(d.getHours());
+	minutes = format_two_digits(d.getMinutes());
+	seconds = format_two_digits(d.getSeconds());
+	return hours + ':' + minutes + ':' + seconds;
+}
+
+function format_two_digits(n) {
+	return n < 10 ? '0' + n : n;
+}
+
+/**Chart area! */
+//main chart func
+function createChart() {
+	if (symbolArray.length > 0) {
+		//timestamps / labels
+		var timeLabels = [];
+
+		//remove paralex
+		$(parallax).hide();
+		//add caparallaxnvas
+		$(root).append('<canvas id="myChart"></canvas>');
+
+		var d = new Date();
+		var formatted_time = time_format(d);
+
+		getCurrentPrice();
+	}
+}
+
+//actualdraw chart func
+function drawChart(result) {
+	Object.keys(result).forEach(element => {
+		let test = element;
+	});
+
+	var ctx = document.getElementById('myChart').getContext('2d');
+	var chart = new Chart(ctx, {
+		// The type of chart we want to create
+		type: 'line',
+
+		// The data for our dataset
+		data: {
+			labels: timeLabels,
+			datasets: [
+				{
+					label: 'My First dataset',
+					backgroundColor: 'rgb(255, 99, 132)',
+					borderColor: 'rgb(255, 99, 132)',
+					fill: false,
+					data: [0, 10, 5, 2, 20, 30, 45],
+				},
+				{
+					label: 'My Second dataset',
+					backgroundColor: 'rgb(11, 22, 132)',
+					borderColor: 'rgb(11, 22, 132)',
+					fill: false,
+					data: [10, 13, 25, 32, 12, 30, 45],
+				},
+			],
+		},
+
+		// Configuration options go here
+		options: {},
+	});
+}
+/**Chart area! */
+
+//get current price for Xcoins
+function getCurrentPrice() {
+	let coinSymbolsString = symbolArray.join();
+	let fullURL = `https://min-api.cryptocompare.com/data/pricemulti?fsyms=${coinSymbolsString}&tsyms=USD`;
+	//min-api.cryptocompare.com/data/pricemulti?fsyms=ETH,BTC&tsyms=USD
+	$.ajax({
+		url: fullURL,
+		success: function(res) {
+			if (res) drawChart(res);
 		},
 		error: function() {
 			alert('error!');

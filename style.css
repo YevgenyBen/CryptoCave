@@ -3,7 +3,7 @@
     background-image: url("crypto.jpg");
 
     /* Set a specific height */
-    min-height: 1000px;
+    min-height: 300px;
 
     /* Create the parallax scrolling effect */
     background-attachment: fixed;
@@ -11,7 +11,9 @@
     background-repeat: repeat;
     background-size: cover;
 }
-
+#myChart{
+  max-height: 560px;
+}
 .card {
     min-height: 100px;
 }
@@ -23,13 +25,17 @@ h3,h4,h5{
 img{
   max-width: 100%;
 }
+
+.button-holder{
+  display: block;
+}
+
 /*toggle switch*/
 .switch {
     position: relative;
-    display: block;
+    display: inline-block;
     width: 50px;
     height: 28px;
-    float: right;
   }
   
   .switch input { 
