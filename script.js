@@ -19,8 +19,6 @@ $(document).ready(function () {
 		},
 	});
 	getAllCoins();
-	var checkBoxArray = [];
-	var symbolArray = [];
 	let aboutBtn = $('.about-btn')[0];
 	aboutBtn.addEventListener('click', function (event) {
 		$(parallax).hide();
@@ -30,6 +28,20 @@ $(document).ready(function () {
 	reportsBtn.addEventListener('click', function (event) {
 		if (idVar)
 			clearInterval(idVar)
+
+			/** WORKS KILLS ALL LISTENERS */
+			$(document).off();
+
+			/** DOESNT WORK  */
+
+			// $(document).off({
+			// 	ajaxStart: function () {
+			// 		$body.addClass('loading');
+			// 	},
+			// 	ajaxStop: function () {
+			// 		$body.removeClass('loading');
+			// 	},
+			// });
 
 		$(root).empty();
 		createChart();
@@ -231,6 +243,14 @@ function buildMoreInfo(moreInfoSpace, res) {
 }
 
 function getAllCoins() {
+	$(document).on({
+		ajaxStart: function () {
+			$body.addClass('loading');
+		},
+		ajaxStop: function () {
+			$body.removeClass('loading');
+		},
+	});
 	checkBoxArray = [];
 	symbolArray = [];
 	if (idVar)
@@ -294,40 +314,8 @@ function createChart() {
 		var d = new Date();
 		var formatted_time = time_format(d);
 		timeLabels.push(formatted_time)
-		//will run on setinterval()
-		idVar = setInterval(() => {
-			var d = new Date();
-			var formatted_time = time_format(d);
-			timeLabels.push(formatted_time)
-			getCurrentPrice(timeLabels)
-		}, 2000)
-		//getCurrentPrice(timeLabels);
-	}
-}
 
-
-//get current price for Xcoins
-function getCurrentPrice(timeLabels) {
-	let coinSymbolsString = symbolArray.join();
-	let fullURL = `https://min-api.cryptocompare.com/data/pricemulti?fsyms=${coinSymbolsString}&tsyms=USD`;
-	//min-api.cryptocompare.com/data/pricemulti?fsyms=ETH,BTC&tsyms=USD
-	$.ajax({
-		url: fullURL,
-		success: function (res) {
-			if (res) drawChart(res, timeLabels);
-		},
-		error: function () {
-			alert('error!');
-		},
-	});
-}
-
-//actualdraw chart func
-function drawChart(res, timeLabels) {
-	try {
-		let datasets = buildDataSets(res)
-
-
+		//new chart creation
 		var ctx = document.getElementById('myChart').getContext('2d');
 		var chart = new Chart(ctx, {
 			// The type of chart we want to create
@@ -335,8 +323,8 @@ function drawChart(res, timeLabels) {
 
 			// The data for our dataset
 			data: {
-				labels: timeLabels,
-				datasets: datasets,
+				labels:timeLabels,
+				datasets:datasets,
 			},
 
 			// data: {
@@ -360,8 +348,86 @@ function drawChart(res, timeLabels) {
 			// },
 
 			// Configuration options go here
-			options: {},
+			options: {
+				animation: { duration: 1000 * 1, easing: "linear" }
+			  },
 		});
+		
+		var d = new Date();
+		var formatted_time = time_format(d);
+		timeLabels.push(formatted_time)
+		getCurrentPrice(timeLabels,chart)
+
+		//will run on setinterval()
+		idVar = setInterval(() => {
+			var d = new Date();
+			var formatted_time = time_format(d);
+			timeLabels.push(formatted_time)
+			getCurrentPrice(timeLabels,chart)
+		}, 1000)
+		//getCurrentPrice(timeLabels);
+	}
+}
+
+
+//get current price for Xcoins
+function getCurrentPrice(timeLabels,chart) {
+	let coinSymbolsString = symbolArray.join();
+	let fullURL = `https://min-api.cryptocompare.com/data/pricemulti?fsyms=${coinSymbolsString}&tsyms=USD`;
+	//min-api.cryptocompare.com/data/pricemulti?fsyms=ETH,BTC&tsyms=USD
+	$.ajax({
+		url: fullURL,
+		success: function (res) {
+			if (res) drawChart(res, timeLabels,chart);
+		},
+		error: function () {
+			alert('error!');
+		},
+	});
+}
+
+//actualdraw chart func
+function drawChart(res, timeLabels,chart) {
+	try {
+		let datasets = buildDataSets(res)
+		chart.data.labels=timeLabels;
+		chart.data.datasets=datasets;
+		chart.update(2000)
+
+		// var ctx = document.getElementById('myChart').getContext('2d');
+		// var chart = new Chart(ctx, {
+		// 	// The type of chart we want to create
+		// 	type: 'line',
+
+		// 	// The data for our dataset
+		// 	data: {
+		// 		labels: timeLabels,
+		// 		datasets: datasets,
+		// 	},
+
+		// 	// data: {
+		// 	// 	labels: timeLabels,
+		// 	// 	datasets: [
+		// 	// 		{
+		// 	// 			label: 'My First dataset',
+		// 	// 			backgroundColor: 'rgb(255, 99, 132)',
+		// 	// 			borderColor: 'rgb(255, 99, 132)',
+		// 	// 			fill: false,
+		// 	// 			data: [0, 10, 5, 2, 20, 30, 45],
+		// 	// 		},
+		// 	// 		{
+		// 	// 			label: 'My Second dataset',
+		// 	// 			backgroundColor: 'rgb(11, 22, 132)',
+		// 	// 			borderColor: 'rgb(11, 22, 132)',
+		// 	// 			fill: false,
+		// 	// 			data: [10, 13, 25, 32, 12, 30, 45],
+		// 	// 		},
+		// 	// 	],
+		// 	// },
+
+		// 	// Configuration options go here
+		// 	options: {},
+		// });
 	}
 	catch (exception) {
 
@@ -391,7 +457,8 @@ function buildDataSets(res) {
 	else {
 		for (let i = 0; i < datasets.length; i++) {
 			let coinPrice = res[Object.keys(res)[i]]["USD"];
-			datasets[i].data = [...datasets[i].data, coinPrice]
+			datasets[i].data= [...datasets[i].data, coinPrice]
+			//datasets[i].data.push(Math.floor(Math.random() * 100));
 			//datasets.push(dataObject);
 		}
 		// Object.keys(res).forEach(element => {
