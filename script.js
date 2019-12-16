@@ -3,13 +3,18 @@ var root = $('.root')[0];
 var parallax = $('.parallax')[0];
 var checkBoxArray = [];
 var symbolArray = [];
-$(document).ready(function() {
+var datasets = [];
+var dataObjects
+var idVar;
+
+
+$(document).ready(function () {
 	localStorage.clear();
 	$(document).on({
-		ajaxStart: function() {
+		ajaxStart: function () {
 			$body.addClass('loading');
 		},
-		ajaxStop: function() {
+		ajaxStop: function () {
 			$body.removeClass('loading');
 		},
 	});
@@ -17,12 +22,15 @@ $(document).ready(function() {
 	var checkBoxArray = [];
 	var symbolArray = [];
 	let aboutBtn = $('.about-btn')[0];
-	aboutBtn.addEventListener('click', function(event) {
+	aboutBtn.addEventListener('click', function (event) {
 		$(parallax).hide();
 		$(root).empty();
 	});
 	let reportsBtn = $('.reports-btn')[0];
-	reportsBtn.addEventListener('click', function(event) {
+	reportsBtn.addEventListener('click', function (event) {
+		if (idVar)
+			clearInterval(idVar)
+
 		$(root).empty();
 		createChart();
 	});
@@ -67,7 +75,7 @@ function buildCard(coinObj) {
 	$(label)
 		.append(input)
 		.append(span);
-	input.addEventListener('change', function(event) {
+	input.addEventListener('change', function (event) {
 		// if (checkBoxArray.indexOf(label) > -1) {
 		if (symbolArray.includes(label.id)) {
 			//In the array!
@@ -93,7 +101,7 @@ function buildCard(coinObj) {
 	)[0];
 	let moreInfoSpace = $(`<div id="demo${coinObj.id}" class="collapse"> </div>`)[0];
 
-	moreInfoButton.addEventListener('click', function(event) {
+	moreInfoButton.addEventListener('click', function (event) {
 		moreInfo(event, moreInfoSpace);
 	});
 	$(card).append(moreInfoButton);
@@ -185,7 +193,7 @@ function moreInfo(e, moreInfoSpace) {
 function getResultPerCoin(moreInfoSpace, coinID, now) {
 	$.ajax({
 		url: `https://api.coingecko.com/api/v3/coins/${coinID}`,
-		success: function(res) {
+		success: function (res) {
 			buildMoreInfo(moreInfoSpace, res);
 
 			//build object to place in local storage
@@ -196,7 +204,7 @@ function getResultPerCoin(moreInfoSpace, coinID, now) {
 
 			window.localStorage.setItem(coinID, JSON.stringify(localStorageObject));
 		},
-		error: function() {
+		error: function () {
 			alert('error!');
 		},
 	});
@@ -223,12 +231,16 @@ function buildMoreInfo(moreInfoSpace, res) {
 }
 
 function getAllCoins() {
+	checkBoxArray = [];
+	symbolArray = [];
+	if (idVar)
+		clearInterval(idVar)
 	$(parallax).show();
 	$('.root').empty();
 
 	$.ajax({
 		url: 'https://api.coingecko.com/api/v3/coins/list',
-		success: function(res) {
+		success: function (res) {
 			// var root=$('.root')[0];
 			// $(root).append('<div class="row"></div>')[0]
 			result = res.slice(0, 100);
@@ -237,7 +249,7 @@ function getAllCoins() {
 			// root.appendChild(buildCard(element));
 			// });
 		},
-		error: function() {
+		error: function () {
 			alert('error!');
 		},
 	});
@@ -255,13 +267,25 @@ function format_two_digits(n) {
 	return n < 10 ? '0' + n : n;
 }
 
+//get random color
+function getRandomColor() {
+	var letters = '0123456789ABCDEF';
+	var color = '#';
+	for (var i = 0; i < 6; i++) {
+		color += letters[Math.floor(Math.random() * 16)];
+	}
+	return color;
+}
+
 /**Chart area! */
 //main chart func
 function createChart() {
 	if (symbolArray.length > 0) {
 		//timestamps / labels
 		var timeLabels = [];
-
+		//data objects
+		datasets = []
+		dataObjects
 		//remove paralex
 		$(parallax).hide();
 		//add caparallaxnvas
@@ -269,61 +293,122 @@ function createChart() {
 
 		var d = new Date();
 		var formatted_time = time_format(d);
-
-		getCurrentPrice();
+		timeLabels.push(formatted_time)
+		//will run on setinterval()
+		idVar = setInterval(() => {
+			var d = new Date();
+			var formatted_time = time_format(d);
+			timeLabels.push(formatted_time)
+			getCurrentPrice(timeLabels)
+		}, 2000)
+		//getCurrentPrice(timeLabels);
 	}
 }
 
-//actualdraw chart func
-function drawChart(result) {
-	Object.keys(result).forEach(element => {
-		let test = element;
-	});
-
-	var ctx = document.getElementById('myChart').getContext('2d');
-	var chart = new Chart(ctx, {
-		// The type of chart we want to create
-		type: 'line',
-
-		// The data for our dataset
-		data: {
-			labels: timeLabels,
-			datasets: [
-				{
-					label: 'My First dataset',
-					backgroundColor: 'rgb(255, 99, 132)',
-					borderColor: 'rgb(255, 99, 132)',
-					fill: false,
-					data: [0, 10, 5, 2, 20, 30, 45],
-				},
-				{
-					label: 'My Second dataset',
-					backgroundColor: 'rgb(11, 22, 132)',
-					borderColor: 'rgb(11, 22, 132)',
-					fill: false,
-					data: [10, 13, 25, 32, 12, 30, 45],
-				},
-			],
-		},
-
-		// Configuration options go here
-		options: {},
-	});
-}
-/**Chart area! */
 
 //get current price for Xcoins
-function getCurrentPrice() {
+function getCurrentPrice(timeLabels) {
 	let coinSymbolsString = symbolArray.join();
 	let fullURL = `https://min-api.cryptocompare.com/data/pricemulti?fsyms=${coinSymbolsString}&tsyms=USD`;
 	//min-api.cryptocompare.com/data/pricemulti?fsyms=ETH,BTC&tsyms=USD
 	$.ajax({
 		url: fullURL,
-		success: function(res) {
-			if (res) drawChart(res);
+		success: function (res) {
+			if (res) drawChart(res, timeLabels);
 		},
-		error: function() {
+		error: function () {
 			alert('error!');
 		},
 	});
 }
+
+//actualdraw chart func
+function drawChart(res, timeLabels) {
+	try {
+		let datasets = buildDataSets(res)
+
+
+		var ctx = document.getElementById('myChart').getContext('2d');
+		var chart = new Chart(ctx, {
+			// The type of chart we want to create
+			type: 'line',
+
+			// The data for our dataset
+			data: {
+				labels: timeLabels,
+				datasets: datasets,
+			},
+
+			// data: {
+			// 	labels: timeLabels,
+			// 	datasets: [
+			// 		{
+			// 			label: 'My First dataset',
+			// 			backgroundColor: 'rgb(255, 99, 132)',
+			// 			borderColor: 'rgb(255, 99, 132)',
+			// 			fill: false,
+			// 			data: [0, 10, 5, 2, 20, 30, 45],
+			// 		},
+			// 		{
+			// 			label: 'My Second dataset',
+			// 			backgroundColor: 'rgb(11, 22, 132)',
+			// 			borderColor: 'rgb(11, 22, 132)',
+			// 			fill: false,
+			// 			data: [10, 13, 25, 32, 12, 30, 45],
+			// 		},
+			// 	],
+			// },
+
+			// Configuration options go here
+			options: {},
+		});
+	}
+	catch (exception) {
+
+	}
+}
+
+//create the changing datasets object for the graphs
+function buildDataSets(res) {
+
+	if (datasets.length == 0) {
+
+
+		Object.keys(res).forEach(element => {
+			let coinName = element;
+			let coinPrice = res[element]["USD"];
+
+			let dataObject = {
+				label: `Coin Id ${coinName}`,
+				backgroundColor: getRandomColor(),
+				borderColor: getRandomColor(),
+				fill: false,
+				data: [coinPrice],
+			}
+			datasets.push(dataObject);
+		});
+	}
+	else {
+		for (let i = 0; i < datasets.length; i++) {
+			let coinPrice = res[Object.keys(res)[i]]["USD"];
+			datasets[i].data = [...datasets[i].data, coinPrice]
+			//datasets.push(dataObject);
+		}
+		// Object.keys(res).forEach(element => {
+		// 	let coinName = element;
+		// 	let coinPrice = res[element]["USD"];
+
+		// 	let dataObject = {
+		// 		label: `Coin Id ${coinName}`,
+		// 		backgroundColor: getRandomColor(),
+		// 		borderColor: getRandomColor(),
+		// 		fill: false,
+		// 		data: [...data,coinPrice],
+		// 	}
+		// 	datasets.push(dataObject);
+		// });	
+	}
+	return datasets;
+}
+
+/**Chart area! */
