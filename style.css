@@ -25,7 +25,9 @@ h3,h4,h5{
 img{
   max-width: 100%;
 }
-
+/* .about_img{
+  text-align: center;
+} */
 .button-holder{
   display: block;
 }

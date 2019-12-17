@@ -11,37 +11,27 @@ var idVar;
 $(document).ready(function () {
 	localStorage.clear();
 	$(document).on({
-		ajaxStart: function () {
-			$body.addClass('loading');
-		},
-		ajaxStop: function () {
-			$body.removeClass('loading');
-		},
+		ajaxStart: ajaxAdd,
+		ajaxStop: ajaxRemove
 	});
 	getAllCoins();
 	let aboutBtn = $('.about-btn')[0];
 	aboutBtn.addEventListener('click', function (event) {
 		$(parallax).hide();
 		$(root).empty();
+		buildAbout()
 	});
 	let reportsBtn = $('.reports-btn')[0];
 	reportsBtn.addEventListener('click', function (event) {
 		if (idVar)
 			clearInterval(idVar)
 
-			/** WORKS KILLS ALL LISTENERS */
-			$(document).off();
+		/** WORKS KILLS ALL LISTENERS */
+		$(document).off({
+			ajaxStart: ajaxAdd,
+			ajaxStop: ajaxRemove
+		});
 
-			/** DOESNT WORK  */
-
-			// $(document).off({
-			// 	ajaxStart: function () {
-			// 		$body.addClass('loading');
-			// 	},
-			// 	ajaxStop: function () {
-			// 		$body.removeClass('loading');
-			// 	},
-			// });
 
 		$(root).empty();
 		createChart();
@@ -53,6 +43,19 @@ $(document).ready(function () {
 	// 	$(root).empty();
 	// });
 });
+
+//starts ajax loading 
+function ajaxAdd() {
+	$body.addClass('loading');
+}
+
+//stops ajax loading
+function ajaxRemove() {
+	$body.removeClass('loading');
+}
+
+
+
 
 //search term was clicked
 function searchFilterClicked() {
@@ -244,12 +247,8 @@ function buildMoreInfo(moreInfoSpace, res) {
 
 function getAllCoins() {
 	$(document).on({
-		ajaxStart: function () {
-			$body.addClass('loading');
-		},
-		ajaxStop: function () {
-			$body.removeClass('loading');
-		},
+		ajaxStart: ajaxAdd,
+		ajaxStop: ajaxRemove
 	});
 	checkBoxArray = [];
 	symbolArray = [];
@@ -297,6 +296,14 @@ function getRandomColor() {
 	return color;
 }
 
+//about area
+function buildAbout() {
+	let imgDiv = $('<img src="./About.jpg" class="about_img mt-5 col-2"></img>')
+	let aboutDiv = $('<div class=mt-5 col-10>Yevgeny Bendersky is awesome <br> Inventor of air and cheese <br>First man to walk on the sun <br>Husband to Margo Robbie and father to Peter Parker <br> Greatest ruler Chechnia has ever seen </div>')
+	$(root).append(imgDiv).append(aboutDiv)
+}
+
+
 /**Chart area! */
 //main chart func
 function createChart() {
@@ -323,8 +330,8 @@ function createChart() {
 
 			// The data for our dataset
 			data: {
-				labels:timeLabels,
-				datasets:datasets,
+				labels: timeLabels,
+				datasets: datasets,
 			},
 
 			// data: {
@@ -350,35 +357,41 @@ function createChart() {
 			// Configuration options go here
 			options: {
 				animation: { duration: 1000 * 1, easing: "linear" }
-			  },
+			},
 		});
-		
+
 		var d = new Date();
 		var formatted_time = time_format(d);
 		timeLabels.push(formatted_time)
-		getCurrentPrice(timeLabels,chart)
+		getCurrentPrice(timeLabels, chart)
 
 		//will run on setinterval()
 		idVar = setInterval(() => {
 			var d = new Date();
 			var formatted_time = time_format(d);
+			if (timeLabels.length>10)
+			timeLabels.shift();
 			timeLabels.push(formatted_time)
-			getCurrentPrice(timeLabels,chart)
+			getCurrentPrice(timeLabels, chart)
 		}, 1000)
 		//getCurrentPrice(timeLabels);
+	}
+	else {
+		$(parallax).hide();
+		$(root).append(`<div class="alert alert-danger col-12 mt-5 text-center">No coins selected, no graph will be shown, go home!</div>`)
 	}
 }
 
 
 //get current price for Xcoins
-function getCurrentPrice(timeLabels,chart) {
+function getCurrentPrice(timeLabels, chart) {
 	let coinSymbolsString = symbolArray.join();
 	let fullURL = `https://min-api.cryptocompare.com/data/pricemulti?fsyms=${coinSymbolsString}&tsyms=USD`;
 	//min-api.cryptocompare.com/data/pricemulti?fsyms=ETH,BTC&tsyms=USD
 	$.ajax({
 		url: fullURL,
 		success: function (res) {
-			if (res) drawChart(res, timeLabels,chart);
+			if (res) drawChart(res, timeLabels, chart);
 		},
 		error: function () {
 			alert('error!');
@@ -387,12 +400,12 @@ function getCurrentPrice(timeLabels,chart) {
 }
 
 //actualdraw chart func
-function drawChart(res, timeLabels,chart) {
+function drawChart(res, timeLabels, chart) {
 	try {
 		let datasets = buildDataSets(res)
-		chart.data.labels=timeLabels;
-		chart.data.datasets=datasets;
-		chart.update(2000)
+		chart.data.labels = timeLabels;
+		chart.data.datasets = datasets;
+		chart.update(1000)
 
 		// var ctx = document.getElementById('myChart').getContext('2d');
 		// var chart = new Chart(ctx, {
@@ -457,7 +470,9 @@ function buildDataSets(res) {
 	else {
 		for (let i = 0; i < datasets.length; i++) {
 			let coinPrice = res[Object.keys(res)[i]]["USD"];
-			datasets[i].data= [...datasets[i].data, coinPrice]
+			if (datasets[i].data.length>10)
+			datasets[i].data.shift();
+			datasets[i].data = [...datasets[i].data, coinPrice]
 			//datasets[i].data.push(Math.floor(Math.random() * 100));
 			//datasets.push(dataObject);
 		}
